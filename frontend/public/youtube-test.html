@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Autoplay Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #ffd3e1, #e7c6ff);
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #d946ef;
+            text-align: center;
+        }
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        .success { background: #d1fae5; color: #065f46; }
+        .error { background: #fee2e2; color: #991b1b; }
+        .info { background: #dbeafe; color: #1e40af; }
+        button {
+            background: linear-gradient(135deg, #ec4899, #d946ef);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        #player-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .url-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 YouTube Autoplay Test</h1>
+        
+        <div id="status" class="status info">
+            Initializing YouTube Player...
+        </div>
+
+        <div>
+            <label for="youtube-url"><strong>YouTube URL:</strong></label>
+            <input 
+                type="text" 
+                id="youtube-url" 
+                class="url-input"
+                value="https://youtu.be/LXaBrusqBcI?si=ZgV6H7yKEKL6V9nL"
+                placeholder="Enter YouTube URL"
+            >
+        </div>
+
+        <div class="controls">
+            <button onclick="playMusic()">▶️ Play Music</button>
+            <button onclick="pauseMusic()">⏸️ Pause</button>
+            <button onclick="stopMusic()">⏹️ Stop</button>
+            <button onclick="testAutoplay()">🔄 Test Autoplay</button>
+        </div>
+
+        <div id="player-container">
+            <!-- YouTube player will be inserted here -->
+            <div id="player"></div>
+        </div>
+
+        <div class="info status">
+            <strong>Note:</strong> Modern browsers may block autoplay. If autoplay doesn't work, click "Play Music" button.
+        </div>
+
+        <div id="logs" style="margin-top: 20px; padding: 15px; background: #f3f4f6; border-radius: 8px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">
+            <strong>Logs:</strong><br>
+        </div>
+    </div>
+
+    <script>
+        let player;
+        let playerReady = false;
+
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#dc2626' : type === 'success' ? '#16a34a' : '#2563eb';
+            logsDiv.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            log(message, type);
+        }
+
+        function getYouTubeVideoId(url) {
+            if (!url) return null;
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+        // Load YouTube IFrame API
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        // This function is called when YouTube API is ready
+        function onYouTubeIframeAPIReady() {
+            log('✅ YouTube IFrame API loaded successfully', 'success');
+            updateStatus('YouTube API Ready - Enter a URL and click Play', 'success');
+            playerReady = true;
+        }
+
+        function createPlayer(videoId, autoplay = false) {
+            if (player) {
+                log('Destroying existing player...');
+                player.destroy();
+            }
+
+            log(`Creating player for video ID: ${videoId}, autoplay: ${autoplay}`);
+            
+            player = new YT.Player('player', {
+                height: '360',
+                width: '640',
+                videoId: videoId,
+                playerVars: {
+                    'autoplay': autoplay ? 1 : 0,
+                    'controls': 1,
+                    'loop': 1,
+                    'playlist': videoId,
+                    'playsinline': 1
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            log('✅ Player is ready!', 'success');
+            updateStatus('✅ Player Ready - Music can play!', 'success');
+            
+            // Set volume to 50%
+            event.target.setVolume(50);
+            log('Volume set to 50%');
+        }
+
+        function onPlayerStateChange(event) {
+            const states = {
+                '-1': 'Unstarted',
+                '0': 'Ended',
+                '1': 'Playing',
+                '2': 'Paused',
+                '3': 'Buffering',
+                '5': 'Video Cued'
+            };
+            const stateName = states[event.data] || 'Unknown';
+            log(`Player state changed: ${stateName}`, event.data === 1 ? 'success' : 'info');
+            
+            if (event.data === 1) {
+                updateStatus('🎵 Music is Playing!', 'success');
+            } else if (event.data === 2) {
+                updateStatus('⏸️ Music Paused', 'info');
+            } else if (event.data === 0) {
+                updateStatus('⏹️ Music Ended', 'info');
+            }
+        }
+
+        function onPlayerError(event) {
+            const errors = {
+                2: 'Invalid video ID',
+                5: 'HTML5 player error',
+                100: 'Video not found or private',
+                101: 'Video embedding not allowed',
+                150: 'Video embedding not allowed'
+            };
+            const errorMsg = errors[event.data] || 'Unknown error';
+            log(`❌ Player Error (${event.data}): ${errorMsg}`, 'error');
+            updateStatus(`❌ Error: ${errorMsg}`, 'error');
+        }
+
+        function playMusic() {
+            const url = document.getElementById('youtube-url').value.trim();
+            if (!url) {
+                updateStatus('❌ Please enter a YouTube URL', 'error');
+                return;
+            }
+
+            const videoId = getYouTubeVideoId(url);
+            if (!videoId) {
+                updateStatus('❌ Invalid YouTube URL', 'error');
+                log(`Failed to extract video ID from: ${url}`, 'error');
+                return;
+            }
+
+            log(`Extracted video ID: ${videoId}`, 'success');
+            
+            if (!player) {
+                createPlayer(videoId, false);
+            } else {
+                log('Loading new video...');
+                player.loadVideoById(videoId);
+                player.playVideo();
+            }
+        }
+
+        function pauseMusic() {
+            if (player && player.pauseVideo) {
+                player.pauseVideo();
+                log('Music paused');
+            } else {
+                updateStatus('❌ Player not initialized', 'error');
+            }
+        }
+
+        function stopMusic() {
+            if (player && player.stopVideo) {
+                player.stopVideo();
+                log('Music stopped');
+                updateStatus('⏹️ Music Stopped', 'info');
+            } else {
+                updateStatus('❌ Player not initialized', 'error');
+            }
+        }
+
+        function testAutoplay() {
+            const url = document.getElementById('youtube-url').value.trim();
+            if (!url) {
+                updateStatus('❌ Please enter a YouTube URL', 'error');
+                return;
+            }
+
+            const videoId = getYouTubeVideoId(url);
+            if (!videoId) {
+                updateStatus('❌ Invalid YouTube URL', 'error');
+                return;
+            }
+
+            log('Testing autoplay...', 'info');
+            updateStatus('Testing autoplay...', 'info');
+            createPlayer(videoId, true);
+        }
+
+        // Show initial URL info
+        window.addEventListener('load', function() {
+            const url = document.getElementById('youtube-url').value;
+            const videoId = getYouTubeVideoId(url);
+            log(`Test URL loaded: ${url}`);
+            log(`Video ID: ${videoId}`);
+        });
+    </script>
+</body>
+</html>
